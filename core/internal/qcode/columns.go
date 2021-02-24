@@ -69,7 +69,7 @@ func (co *Compiler) compileChildColumns(
 			continue
 		}
 
-		fn, agg, err := co.isFunction(sel, f.Name)
+		fn, fnExp, agg, err := co.isFunction(sel, f.Name)
 		if err != nil {
 			return err
 		}
@@ -91,7 +91,13 @@ func (co *Compiler) compileChildColumns(
 			}
 			// is a function
 		} else {
-			if agg {
+			if fnExp != "" {
+				err := co.parseFuncExpression(sel, &fn, fnExp)
+				if err != nil {
+					return err
+				}
+			}
+			if agg && fn.Sel == nil {
 				aggExist = true
 			}
 			fn.FieldName = fname
@@ -190,6 +196,8 @@ func validateSelector(qc *QCode, sel *Select, tr trval) error {
 
 		if fn.Col.Name != "" {
 			blocked = !tr.columnAllowed(qc, fn.Col.Name)
+		} else if fn.Sel != nil {
+			// TODO: how to get tr for fn Sel?
 		} else {
 			blocked = !tr.columnAllowed(qc, fn.Name)
 		}

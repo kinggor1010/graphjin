@@ -2,11 +2,12 @@ package qcode
 
 import (
 	"fmt"
+	"github.com/dosco/graphjin/core/internal/sdata"
 	"strings"
 )
 
-func (co *Compiler) isFunction(sel *Select, fname string) (Function, bool, error) {
-	var cn string
+func (co *Compiler) isFunction(sel *Select, fname string) (Function, string, bool, error) {
+	var fnExp string
 	var agg bool
 	var err error
 
@@ -17,15 +18,15 @@ func (co *Compiler) isFunction(sel *Select, fname string) (Function, bool, error
 		fn.Name = "search_rank"
 
 		if _, ok := sel.ArgMap["search"]; !ok {
-			return fn, false, fmt.Errorf("no search defined: %s", fname)
+			return fn, "", false, fmt.Errorf("no search defined: %s", fname)
 		}
 
 	case strings.HasPrefix(fname, "search_headline_"):
 		fn.Name = "search_headline"
-		cn = fname[16:]
+		fnExp = fname[16:]
 
 		if _, ok := sel.ArgMap["search"]; !ok {
-			return fn, false, fmt.Errorf("no search defined: %s", fname)
+			return fn, "", false, fmt.Errorf("no search defined: %s", fname)
 		}
 
 	case fname == "__typename":
@@ -38,17 +39,13 @@ func (co *Compiler) isFunction(sel *Select, fname string) (Function, bool, error
 	default:
 		n := co.funcPrefixLen(fname)
 		if n != 0 {
-			cn = fname[n:]
+			fnExp = fname[n:]
 			fn.Name = fname[:(n - 1)]
 			agg = true
 		}
 	}
 
-	if cn != "" {
-		fn.Col, err = sel.Ti.GetColumn(cn)
-	}
-
-	return fn, agg, err
+	return fn, fnExp, agg, err
 }
 
 func (co *Compiler) funcPrefixLen(col string) int {
@@ -86,4 +83,45 @@ func (co *Compiler) funcPrefixLen(col string) int {
 	}
 
 	return 0
+}
+
+func (co *Compiler) parseFuncExpression(sel *Select, fn *Function, fnExp string) error {
+	var err error
+
+	if strings.HasPrefix(fnExp, "_") {
+		parts := strings.Split(fnExp[1:], "__")
+		var column sdata.DBColumn
+		table, err := co.s.Find(co.c.DBSchema, parts[0])
+		if err != nil {
+			return err
+		}
+		if len(parts) == 1 {
+			column = table.PrimaryCol
+		} else {
+			col, err := table.GetColumn(parts[1])
+			if err != nil {
+				return err
+			}
+			column = col
+		}
+
+		fnSel := &Select{
+			ParentID: sel.ID,
+			Table:    table.Name,
+		}
+		var paths []sdata.TPath
+		paths, err = co.s.FindPath(table.Name, sel.Table)
+		fnSel.addCol(Column{
+			Col: column,
+		}, true)
+		fnSel.Rel = sdata.PathToRel(paths[0])
+		for _, p := range paths[1:] {
+			fnSel.Joins = append(fnSel.Joins, sdata.PathToRel(p))
+		}
+		fn.Sel = fnSel
+	} else {
+		fn.Col, err = sel.Ti.GetColumn(fnExp)
+	}
+
+	return err
 }

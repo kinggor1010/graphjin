@@ -354,6 +354,21 @@ func (c *compilerContext) renderBaseSelect(sel *qcode.Select) {
 	c.renderLimit(sel)
 }
 
+func (c *compilerContext) renderFunctionSelect(fn qcode.Function) {
+	c.w.WriteString(`( WITH local_0 as ( SELECT `)
+	c.w.WriteString(fn.Sel.BCols[0].Col.Name)
+	c.w.WriteString(` FROM `)
+	c.w.WriteString(fn.Sel.Table)
+	c.renderJoinTables(fn.Sel)
+	c.renderWhere(fn.Sel)
+	c.w.WriteString(` ) SELECT `)
+	c.w.WriteString(fn.Name)
+	c.w.WriteString("(")
+	c.w.WriteString(fn.Sel.BCols[0].Col.Name)
+	c.w.WriteString(") FROM local_0 )")
+	c.alias(fn.FieldName)
+}
+
 func (c *compilerContext) renderLimit(sel *qcode.Select) {
 	switch {
 	case sel.Paging.NoLimit:

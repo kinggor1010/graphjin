@@ -299,6 +299,20 @@ func aggFunctionWithFilter(t *testing.T) {
 	compileGQLToPSQL(t, gql, nil, "user")
 }
 
+func aggFunctionSelect(t *testing.T) {
+	gql := `query {
+		products(where: { id: { gt: 10 } }) {
+			id
+			count__comments__id
+			comments {
+				id
+			}
+		}
+	}`
+
+	compileGQLToPSQL(t, gql, nil, "user")
+}
+
 func syntheticTables(t *testing.T) {
 	gql := `query {
 		me {
@@ -668,6 +682,7 @@ func TestCompileQuery(t *testing.T) {
 	t.Run("aggFunctionBlockedByCol", aggFunctionBlockedByCol)
 	t.Run("aggFunctionDisabled", aggFunctionDisabled)
 	t.Run("aggFunctionWithFilter", aggFunctionWithFilter)
+	t.Run("aggFunctionRelation", aggFunctionSelect)
 	t.Run("syntheticTables", syntheticTables)
 	t.Run("queryWithVariables", queryWithVariables)
 	t.Run("withWhereOnRelations", withWhereOnRelations)

@@ -15,14 +15,30 @@ func (c *compilerContext) renderColumns(sel *qcode.Select) {
 		c.alias(col.FieldName)
 		i++
 	}
-	for _, fn := range sel.Funcs {
+	rangeWithRemove := func(arr []qcode.Function, do func(idx int, fn qcode.Function) bool) []qcode.Function {
+		for i := len(arr) - 1; i >= 0; i-- {
+			shouldRemove := do(i, arr[i])
+			if shouldRemove {
+				arr = append(arr[:i], arr[i+1:]...)
+			}
+		}
+		return arr
+	}
+	sel.Funcs = rangeWithRemove(sel.Funcs, func(idx int, fn qcode.Function) bool {
 		if i != 0 {
 			c.w.WriteString(", ")
 		}
+		i++
+
+		if fn.Sel != nil {
+			c.renderFunctionSelect(fn)
+			return true
+		}
+
 		colWithTableID(c.w, sel.Table, sel.ID, fn.FieldName)
 		c.alias(fn.FieldName)
-		i++
-	}
+		return false
+	})
 	if sel.Typename {
 		if i != 0 {
 			c.w.WriteString(`, `)

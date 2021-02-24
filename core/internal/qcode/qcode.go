@@ -99,6 +99,7 @@ type Column struct {
 
 type Function struct {
 	Name      string
+	Sel       *Select
 	Col       sdata.DBColumn
 	FieldName string
 	skip      bool
