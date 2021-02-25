@@ -164,7 +164,7 @@ func (c *compilerContext) renderFunctionSearchHeadline(sel *qcode.Select, fn qco
 
 	hasIndex := false
 	for _, col := range sel.Ti.FullText {
-		if col.Key == fn.Col.Key {
+		if col.ID == fn.Col.ID {
 			hasIndex = true
 		}
 	}
@@ -194,10 +194,40 @@ func (c *compilerContext) renderOtherFunction(sel *qcode.Select, fn qcode.Functi
 	_, _ = c.w.WriteString(`)`)
 }
 
-func (c *compilerContext) renderBaseColumns(sel *qcode.Select) {
+func (c *compilerContext) renderBaseColumns(sel *qcode.Select) int {
 	i := 0
 
 	for _, col := range sel.BCols {
+		if i != 0 {
+			c.w.WriteString(`, `)
+		}
+		if col.Col.Array && c.ct == "mysql" {
+			c.w.WriteString(`CAST(`)
+			colWithTable(c.w, sel.Table, col.Col.Name)
+			c.w.WriteString(` AS JSON) AS `)
+			c.w.WriteString(col.Col.Name)
+		} else {
+			colWithTable(c.w, sel.Table, col.Col.Name)
+		}
+		i++
+	}
+	return i
+}
+
+func (c *compilerContext) renderFunctions(sel *qcode.Select, i int) {
+	for _, fn := range sel.Funcs {
+		if i != 0 {
+			c.w.WriteString(`, `)
+		}
+		c.renderFunction(sel, fn)
+		i++
+	}
+}
+
+func (c *compilerContext) renderRecursiveBaseColumns(sel *qcode.Select) {
+	i := 0
+
+	for _, col := range sel.Cols {
 		if i != 0 {
 			c.w.WriteString(`, `)
 		}
